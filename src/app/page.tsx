@@ -1,6 +1,6 @@
 "use client";
 
-import React, { FormEvent, useState, useEffect, useCallback } from 'react';
+import React, { FormEvent, useState, useEffect, useCallback } from "react";
 import CalendarHeatmap from "react-calendar-heatmap";
 import { Tooltip } from "react-tooltip";
 
@@ -42,6 +42,12 @@ type Post = {
   permalink: string;
 };
 
+type Profile = {
+  id: string;
+  username: string;
+  threads_profile_picture_url: string;
+};
+
 const formatNumber = (num: number | undefined | null) => {
   if (num === undefined || num === null) {
     return "0";
@@ -62,6 +68,7 @@ const formatTime = (timestamp: string) => {
 export default function Home() {
   const [data, setData] = useState<ActivityValue[]>([]);
   const [insights, setInsights] = useState<InsightData | null>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHeatmap, setShowHeatmap] = useState(false);
@@ -72,14 +79,31 @@ export default function Home() {
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [tokenExists, setTokenExists] = useState(false);
 
+  const fetchProfileData = async () => {
+    try {
+      const res = await fetch("/api/profile");
+      const data = await res.json();
+      if (res.ok) {
+        setProfile(data);
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (error) {
+      console.error("Failed to fetch profile:", error);
+    }
+  };
+
   useEffect(() => {
     const checkToken = async () => {
       try {
-        const res = await fetch('/api/token/exists');
+        const res = await fetch("/api/token/exists");
         const data = await res.json();
         setTokenExists(data.exists);
+        if (data.exists) {
+          fetchProfileData();
+        }
       } catch (error) {
-        console.error('Failed to check token existence:', error);
+        console.error("Failed to check token existence:", error);
       }
     };
     checkToken();
@@ -116,17 +140,20 @@ export default function Home() {
         fetchInsightsData(fetchYear),
       ]);
 
-      if (threadsResult.status === 'fulfilled') {
+      if (threadsResult.status === "fulfilled") {
         setData(threadsResult.value);
       } else {
         if (threadsResult.reason instanceof Error) {
           const errorMessage = threadsResult.reason.message;
           setError(errorMessage);
-          if (errorMessage.includes('Session has expired')) {
+          if (
+            errorMessage.includes("Session has expired") ||
+            errorMessage.includes("Threads Access Token is not configured")
+          ) {
             setShowTokenPopup(true);
           }
         } else {
-          setError('An unknown error occurred');
+          setError("An unknown error occurred");
         }
         setData([]);
       }
@@ -165,7 +192,7 @@ export default function Home() {
       } else {
         if (insightsResult.reason instanceof Error) {
           const errorMessage = insightsResult.reason.message;
-          if (errorMessage.includes('Invalid parameter')) {
+          if (errorMessage.includes("Invalid parameter")) {
             setInsights({
               views: 0,
               likes: 0,
@@ -175,13 +202,16 @@ export default function Home() {
             });
           } else {
             setError(errorMessage);
-            if (errorMessage.includes('Session has expired')) {
+            if (
+              errorMessage.includes("Session has expired") ||
+              errorMessage.includes("Threads Access Token is not configured")
+            ) {
               setShowTokenPopup(true);
             }
             setInsights(null);
           }
         } else {
-          setError('An unknown error occurred');
+          setError("An unknown error occurred");
           setInsights(null);
         }
       }
@@ -193,6 +223,7 @@ export default function Home() {
   const handleLogout = () => {
     setData([]);
     setInsights(null);
+    setProfile(null);
     setError(null);
     setShowHeatmap(false);
     setSelectedDate(null);
@@ -203,24 +234,25 @@ export default function Home() {
 
   const handleSaveToken = async (token: string) => {
     try {
-      const res = await fetch('/api/token', {
-        method: 'POST',
+      const res = await fetch("/api/token", {
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ token }),
       });
       if (!res.ok) {
-        throw new Error('Failed to save token');
+        throw new Error("Failed to save token");
       }
       setShowTokenPopup(false);
       setTokenExists(true);
+      fetchProfileData();
       fetchAllData(year);
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
       } else {
-        setError('An unknown error occurred');
+        setError("An unknown error occurred");
       }
     }
   };
@@ -232,7 +264,7 @@ export default function Home() {
       const res = await fetch(`/api/posts?date=${date}`);
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || '게시글을 불러오는데 실패했습니다.');
+        throw new Error(errorData.error || "게시글을 불러오는데 실패했습니다.");
       }
       const postsData = await res.json();
       setPosts(postsData.data);
@@ -240,7 +272,7 @@ export default function Home() {
       if (error instanceof Error) {
         setError(error.message);
       } else {
-        setError('An unknown error occurred');
+        setError("An unknown error occurred");
       }
     } finally {
       setLoadingPosts(false);
@@ -272,14 +304,28 @@ export default function Home() {
       <div className="w-full max-w-5xl">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold">Threads 활동 내역</h1>
-          {tokenExists && (
-            <button
-              onClick={handleLogout}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
-            >
-              세션 아웃
-            </button>
-          )}
+          <div className="flex items-center space-x-4">
+            {profile && (
+              <>
+                <Image
+                  src={profile.threads_profile_picture_url}
+                  alt={profile.username}
+                  width={40}
+                  height={40}
+                  className="rounded-full"
+                />
+                <span className="font-semibold">{profile.username}</span>
+              </>
+            )}
+            {tokenExists && (
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700"
+              >
+                세션 아웃
+              </button>
+            )}
+          </div>
         </div>
         <p className="text-gray-600 dark:text-gray-400 mb-8">
           Threads 포스팅 기록을 Github 잔디처럼 보여줍니다.
@@ -291,7 +337,7 @@ export default function Home() {
             disabled={loading}
             className="w-full sm:w-auto px-8 py-3 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
-            {loading ? "조회 중..." : "올해 활동 조회"}
+            {loading ? "조회 중..." : "활동 조회"}
           </button>
         </form>
 
@@ -328,7 +374,7 @@ export default function Home() {
                     {formatNumber(insights?.replies)}
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    잡글
+                    답글
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
@@ -355,7 +401,8 @@ export default function Home() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setYear(year - 1)}
-                    className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+                    disabled={year <= 2024}
+                    className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     &larr;
                   </button>
@@ -400,14 +447,18 @@ export default function Home() {
                       return `color-scale-${count}`;
                     }}
                     showWeekdayLabels={true}
-                    transformDayElement={(props, value, index) => (
-                      <rect
-                        {...props}
-                        key={index}
-                        data-tooltip-id="heatmap-tooltip"
-                        data-tooltip-content={value ? `${value.date}: ${value.count} posts` : 'No activity'}
-                      />
-                    )}
+                    // @ts-expect-error - react-calendar-heatmap type definition is incorrect
+                    tooltipDataAttrs={(value) => {
+                      if (!value || !value.date) {
+                        return {
+                          "data-tip": "No activity",
+                        };
+                      }
+                      const postText = value.count === 1 ? "post" : "posts";
+                      return {
+                        "data-tip": `${value.date}: ${value.count} ${postText}`,
+                      };
+                    }}
                   />
                   <div className="mt-4">
                     <ColorLegend />
