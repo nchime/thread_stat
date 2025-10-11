@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useEffect, useCallback } from "react";
+import React, { FormEvent, useState, useEffect, useCallback } from 'react';
 import CalendarHeatmap from "react-calendar-heatmap";
 import { Tooltip } from "react-tooltip";
 
@@ -116,13 +116,17 @@ export default function Home() {
         fetchInsightsData(fetchYear),
       ]);
 
-      if (threadsResult.status === "fulfilled") {
+      if (threadsResult.status === 'fulfilled') {
         setData(threadsResult.value);
       } else {
-        const errorMessage = (threadsResult.reason as Error).message;
-        setError(errorMessage);
-        if (errorMessage.includes("Session has expired")) {
-          setShowTokenPopup(true);
+        if (threadsResult.reason instanceof Error) {
+          const errorMessage = threadsResult.reason.message;
+          setError(errorMessage);
+          if (errorMessage.includes('Session has expired')) {
+            setShowTokenPopup(true);
+          }
+        } else {
+          setError('An unknown error occurred');
         }
         setData([]);
       }
@@ -159,20 +163,25 @@ export default function Home() {
           )
         );
       } else {
-        const errorMessage = (insightsResult.reason as Error).message;
-        if (errorMessage.includes("Invalid parameter")) {
-          setInsights({
-            views: 0,
-            likes: 0,
-            replies: 0,
-            reposts: 0,
-            followers_count: 0,
-          });
-        } else {
-          setError(errorMessage);
-          if (errorMessage.includes("Session has expired")) {
-            setShowTokenPopup(true);
+        if (insightsResult.reason instanceof Error) {
+          const errorMessage = insightsResult.reason.message;
+          if (errorMessage.includes('Invalid parameter')) {
+            setInsights({
+              views: 0,
+              likes: 0,
+              replies: 0,
+              reposts: 0,
+              followers_count: 0,
+            });
+          } else {
+            setError(errorMessage);
+            if (errorMessage.includes('Session has expired')) {
+              setShowTokenPopup(true);
+            }
+            setInsights(null);
           }
+        } else {
+          setError('An unknown error occurred');
           setInsights(null);
         }
       }
@@ -208,10 +217,13 @@ export default function Home() {
       setTokenExists(true);
       fetchAllData(year);
     } catch (error) {
-      setError((error as Error).message);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     }
   };
-
 
   const fetchPostsForDate = async (date: string) => {
     setLoadingPosts(true);
@@ -220,12 +232,16 @@ export default function Home() {
       const res = await fetch(`/api/posts?date=${date}`);
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || "게시글을 불러오는데 실패했습니다.");
+        throw new Error(errorData.error || '게시글을 불러오는데 실패했습니다.');
       }
       const postsData = await res.json();
       setPosts(postsData.data);
     } catch (error) {
-      setError((error as Error).message);
+      if (error instanceof Error) {
+        setError(error.message);
+      } else {
+        setError('An unknown error occurred');
+      }
     } finally {
       setLoadingPosts(false);
     }
@@ -383,20 +399,15 @@ export default function Home() {
                       const count = Math.min(value.count, 4);
                       return `color-scale-${count}`;
                     }}
-                    tooltipDataAttrs={(value: ActivityValue) => {
-                      if (!value || !value.date) {
-                        return {
-                          "data-tooltip-id": "heatmap-tooltip",
-                          "data-tooltip-content": "No activity",
-                        };
-                      }
-                      const postText = value.count === 1 ? "post" : "posts";
-                      return {
-                        "data-tooltip-id": "heatmap-tooltip",
-                        "data-tooltip-content": `${value.date}: ${value.count} ${postText}`,
-                      };
-                    }}
                     showWeekdayLabels={true}
+                    transformDayElement={(props, value, index) => (
+                      <rect
+                        {...props}
+                        key={index}
+                        data-tooltip-id="heatmap-tooltip"
+                        data-tooltip-content={value ? `${value.date}: ${value.count} posts` : 'No activity'}
+                      />
+                    )}
                   />
                   <div className="mt-4">
                     <ColorLegend />

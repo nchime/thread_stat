@@ -17,6 +17,7 @@ type AggregatedData = {
 
 // Fetches all media for the authenticated user, handling pagination.
 async function fetchAllMedia(accessToken: string, year: number): Promise<MediaNode[]> {
+  // eslint-disable-next-line prefer-const
   let allMedia: MediaNode[] = [];
   
   const since = Math.floor(new Date(year, 0, 1).getTime() / 1000);
@@ -82,6 +83,9 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(Object.values(aggregated));
   } catch (error: unknown) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
   }
 }

@@ -46,6 +46,9 @@ export async function GET(request: NextRequest) {
     const insights = await fetchInsights(accessToken, since, until);
     return NextResponse.json(insights);
   } catch (error: unknown) {
-    return NextResponse.json({ error: (error as Error).message }, { status: 500 });
+    if (error instanceof Error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'An unknown error occurred' }, { status: 500 });
   }
 }
