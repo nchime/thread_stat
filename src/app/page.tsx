@@ -94,7 +94,22 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const checkToken = async () => {
+    const initialize = async () => {
+      const storedToken = localStorage.getItem("THREADS_ACCESS_TOKEN");
+      if (storedToken) {
+        try {
+          await fetch("/api/token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ token: storedToken }),
+          });
+        } catch (error) {
+          console.error("Failed to send stored token to backend:", error);
+        }
+      }
+
       try {
         const res = await fetch("/api/token/exists");
         const data = await res.json();
@@ -106,7 +121,7 @@ export default function Home() {
         console.error("Failed to check token existence:", error);
       }
     };
-    checkToken();
+    initialize();
   }, []);
 
   const fetchThreadsData = async (fetchYear: number) => {
@@ -220,7 +235,19 @@ export default function Home() {
     }
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    localStorage.removeItem("THREADS_ACCESS_TOKEN");
+    try {
+      await fetch("/api/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token: "" }),
+      });
+    } catch (error) {
+      console.error("Failed to clear token on backend:", error);
+    }
     setData([]);
     setInsights(null);
     setProfile(null);
@@ -244,6 +271,7 @@ export default function Home() {
       if (!res.ok) {
         throw new Error("Failed to save token");
       }
+      localStorage.setItem("THREADS_ACCESS_TOKEN", token);
       setShowTokenPopup(false);
       setTokenExists(true);
       fetchProfileData();
@@ -447,17 +475,18 @@ export default function Home() {
                       return `color-scale-${count}`;
                     }}
                     showWeekdayLabels={true}
-                    // @ts-expect-error - react-calendar-heatmap type definition is incorrect
-                    tooltipDataAttrs={(value) => {
-                      if (!value || !value.date) {
-                        return {
-                          "data-tip": "No activity",
-                        };
+                    transformDayElement={(rectProps, value, index) => {
+                      if (value) {
+                        const postText = value.count === 1 ? "post" : "posts";
+                        return (
+                          <rect
+                            {...rectProps}
+                            data-tooltip-id="heatmap-tooltip"
+                            data-tooltip-content={`${value.date}: ${value.count} ${postText}`}
+                          />
+                        );
                       }
-                      const postText = value.count === 1 ? "post" : "posts";
-                      return {
-                        "data-tip": `${value.date}: ${value.count} ${postText}`,
-                      };
+                      return <rect {...rectProps} />;
                     }}
                   />
                   <div className="mt-4">

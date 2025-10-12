@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
+import { getAccessToken } from '../store';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const tokenExists = !!process.env.THREADS_ACCESS_TOKEN;
-  return NextResponse.json({ exists: tokenExists });
+  const token = getAccessToken();
+  return NextResponse.json({ exists: !!token });
 }

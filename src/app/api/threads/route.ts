@@ -59,8 +59,10 @@ async function fetchAllMedia(accessToken: string, year: number): Promise<MediaNo
   return allMedia;
 }
 
+import { getAccessToken } from '../token/store';
+
 export async function GET(request: NextRequest) {
-  const accessToken = process.env.THREADS_ACCESS_TOKEN;
+  const accessToken = getAccessToken();
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
   const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();

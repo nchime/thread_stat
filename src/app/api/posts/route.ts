@@ -18,8 +18,10 @@ async function fetchPosts(accessToken: string, since: number, until: number) {
   return response.json();
 }
 
+import { getAccessToken } from '../token/store';
+
 export async function GET(request: NextRequest) {
-  const accessToken = process.env.THREADS_ACCESS_TOKEN;
+  const accessToken = getAccessToken();
   if (!accessToken) {
     return NextResponse.json({ error: 'Threads Access Token is not configured on the server.' }, { status: 500 });
   }
