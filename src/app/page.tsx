@@ -147,7 +147,6 @@ export default function Home() {
   const fetchAllData = useCallback(async (fetchYear: number) => {
     setLoading(true);
     setError(null);
-    setShowHeatmap(true);
 
     try {
       const [threadsResult, insightsResult] = await Promise.allSettled([
@@ -275,7 +274,7 @@ export default function Home() {
       setShowTokenPopup(false);
       setTokenExists(true);
       fetchProfileData();
-      fetchAllData(year);
+      setShowHeatmap(true);
     } catch (error) {
       if (error instanceof Error) {
         setError(error.message);
@@ -309,7 +308,7 @@ export default function Home() {
 
   const handleFetch = (e: FormEvent) => {
     e.preventDefault();
-    fetchAllData(year);
+    setShowHeatmap(true);
   };
 
   useEffect(() => {
@@ -475,18 +474,15 @@ export default function Home() {
                       return `color-scale-${count}`;
                     }}
                     showWeekdayLabels={true}
-                    transformDayElement={(rectProps, value, index) => {
-                      if (value) {
+                    transformDayElement={(rect: any, value, index) => {
+                      if (value && value.count > 0) {
                         const postText = value.count === 1 ? "post" : "posts";
-                        return (
-                          <rect
-                            {...rectProps}
-                            data-tooltip-id="heatmap-tooltip"
-                            data-tooltip-content={`${value.date}: ${value.count} ${postText}`}
-                          />
-                        );
+                        return React.cloneElement(rect, {
+                          "data-tooltip-id": "heatmap-tooltip",
+                          "data-tooltip-content": `${value.date}: ${value.count} ${postText}`,
+                        });
                       }
-                      return <rect {...rectProps} />;
+                      return rect;
                     }}
                   />
                   <div className="mt-4">
