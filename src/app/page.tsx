@@ -474,15 +474,18 @@ export default function Home() {
                       return `color-scale-${count}`;
                     }}
                     showWeekdayLabels={true}
-                    transformDayElement={(rect: any, value, index) => {
+                    transformDayElement={(rectProps, value) => {
                       if (value && value.count > 0) {
                         const postText = value.count === 1 ? "post" : "posts";
-                        return React.cloneElement(rect, {
-                          "data-tooltip-id": "heatmap-tooltip",
-                          "data-tooltip-content": `${value.date}: ${value.count} ${postText}`,
-                        });
+                        return (
+                          <rect
+                            {...rectProps}
+                            data-tooltip-id="heatmap-tooltip"
+                            data-tooltip-content={`${value.date}: ${value.count} ${postText}`}
+                          />
+                        );
                       }
-                      return rect;
+                      return <rect {...rectProps} />;
                     }}
                   />
                   <div className="mt-4">
