@@ -116,6 +116,7 @@ export default function Home() {
         setTokenExists(data.exists);
         if (data.exists) {
           fetchProfileData();
+          setShowHeatmap(true);
         }
       } catch (error) {
         console.error("Failed to check token existence:", error);
@@ -155,8 +156,17 @@ export default function Home() {
       ]);
 
       if (threadsResult.status === "fulfilled") {
+        console.log("Threads data:", threadsResult.value);
+        console.log("Data for CalendarHeatmap:", threadsResult.value);
+        console.log(
+          "CalendarHeatmap startDate:",
+          startDate,
+          "endDate:",
+          endDate
+        );
         setData(threadsResult.value);
       } else {
+        console.error("Failed to fetch threads data:", threadsResult.reason);
         if (threadsResult.reason instanceof Error) {
           const errorMessage = threadsResult.reason.message;
           setError(errorMessage);
@@ -320,6 +330,9 @@ export default function Home() {
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year, 11, 31);
 
+  console.log("Calculated startDate:", startDate);
+  console.log("Calculated endDate:", endDate);
+
   return (
     <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 lg:p-24">
       {showTokenPopup && (
@@ -456,38 +469,31 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div>
-                  <CalendarHeatmap
-                    startDate={startDate}
-                    endDate={endDate}
-                    values={data}
-                    onClick={(value) => {
-                      if (value) {
-                        fetchPostsForDate(value.date);
-                      }
-                    }}
-                    classForValue={(value) => {
-                      if (!value) {
-                        return "color-empty";
-                      }
-                      const count = Math.min(value.count, 4);
-                      return `color-scale-${count}`;
-                    }}
-                    showWeekdayLabels={true}
-                    transformDayElement={(rectProps, value) => {
-                      if (value && value.count > 0) {
-                        const postText = value.count === 1 ? "post" : "posts";
-                        return (
-                          <rect
-                            {...rectProps}
-                            data-tooltip-id="heatmap-tooltip"
-                            data-tooltip-content={`${value.date}: ${value.count} ${postText}`}
-                          />
-                        );
-                      }
-                      return <rect {...rectProps} />;
-                    }}
-                  />
+                <div className="min-h-[200px] w-full">
+                  {data.length > 0 ? (
+                    <CalendarHeatmap
+                      startDate={startDate}
+                      endDate={endDate}
+                      values={data}
+                      onClick={(value) => {
+                        if (value) {
+                          fetchPostsForDate(value.date);
+                        }
+                      }}
+                      classForValue={(value) => {
+                        if (!value) {
+                          return "color-empty";
+                        }
+                        const count = Math.min(value.count, 4);
+                        return `color-scale-${count}`;
+                      }}
+                      showWeekdayLabels={true}
+                    />
+                  ) : (
+                    <p className="text-gray-500 dark:text-gray-400">
+                      데이터를 불러오는 중이거나 표시할 데이터가 없습니다.
+                    </p>
+                  )}
                   <div className="mt-4">
                     <ColorLegend />
                   </div>
