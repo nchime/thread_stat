@@ -13,16 +13,28 @@ type ActivityValue = {
   count: number;
 };
 
-const ColorLegend = ({ metric }: { metric: 'count' | 'views' }) => {
-  if (metric === 'views') {
+const ColorLegend = ({ metric }: { metric: "count" | "views" }) => {
+  if (metric === "views") {
     return (
       <div className="flex items-center justify-end space-x-2 text-sm text-gray-600 dark:text-gray-400">
         <span>Less</span>
         <div className="w-4 h-4 rounded-sm bg-[#ebedf0] dark:bg-[#161b22] border border-gray-300 dark:border-gray-600"></div>
-        <div className="w-4 h-4 rounded-sm bg-[#ffcdd2] dark:bg-[#480c0e]" title="&lt; 100 views"></div>
-        <div className="w-4 h-4 rounded-sm bg-[#e57373] dark:bg-[#8c1b1f]" title="&lt; 500 views"></div>
-        <div className="w-4 h-4 rounded-sm bg-[#d32f2f] dark:bg-[#cf222e]" title="&lt; 1000 views"></div>
-        <div className="w-4 h-4 rounded-sm bg-[#b71c1c] dark:bg-[#ff6a69]" title="1000+ views"></div>
+        <div
+          className="w-4 h-4 rounded-sm bg-[#ffcdd2] dark:bg-[#480c0e]"
+          title="&lt; 100 views"
+        ></div>
+        <div
+          className="w-4 h-4 rounded-sm bg-[#e57373] dark:bg-[#8c1b1f]"
+          title="&lt; 500 views"
+        ></div>
+        <div
+          className="w-4 h-4 rounded-sm bg-[#d32f2f] dark:bg-[#cf222e]"
+          title="&lt; 1000 views"
+        ></div>
+        <div
+          className="w-4 h-4 rounded-sm bg-[#b71c1c] dark:bg-[#ff6a69]"
+          title="1000+ views"
+        ></div>
         <span>More</span>
       </div>
     );
@@ -31,10 +43,22 @@ const ColorLegend = ({ metric }: { metric: 'count' | 'views' }) => {
     <div className="flex items-center justify-end space-x-2 text-sm text-gray-600 dark:text-gray-400">
       <span>Less</span>
       <div className="w-4 h-4 rounded-sm bg-[#ebedf0] dark:bg-[#161b22] border border-gray-300 dark:border-gray-600"></div>
-      <div className="w-4 h-4 rounded-sm bg-[#9be9a8] dark:bg-[#0e4429]" title="1 post"></div>
-      <div className="w-4 h-4 rounded-sm bg-[#40c463] dark:bg-[#006d32]" title="2 posts"></div>
-      <div className="w-4 h-4 rounded-sm bg-[#30a14e] dark:bg-[#26a641]" title="3 posts"></div>
-      <div className="w-4 h-4 rounded-sm bg-[#216e39] dark:bg-[#39d353]" title="4+ posts"></div>
+      <div
+        className="w-4 h-4 rounded-sm bg-[#9be9a8] dark:bg-[#0e4429]"
+        title="1 post"
+      ></div>
+      <div
+        className="w-4 h-4 rounded-sm bg-[#40c463] dark:bg-[#006d32]"
+        title="2 posts"
+      ></div>
+      <div
+        className="w-4 h-4 rounded-sm bg-[#30a14e] dark:bg-[#26a641]"
+        title="3 posts"
+      ></div>
+      <div
+        className="w-4 h-4 rounded-sm bg-[#216e39] dark:bg-[#39d353]"
+        title="4+ posts"
+      ></div>
       <span>More</span>
     </div>
   );
@@ -46,6 +70,7 @@ type InsightData = {
   replies: number;
   reposts: number;
   followers_count: number;
+  total_posts?: number; // 추가
 };
 
 type Post = {
@@ -98,7 +123,9 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [tokenExists, setTokenExists] = useState(false);
-  const [heatmapMetric, setHeatmapMetric] = useState<'count' | 'views'>('count');
+  const [heatmapMetric, setHeatmapMetric] = useState<"count" | "views">(
+    "count"
+  );
 
   const fetchProfileData = async () => {
     try {
@@ -146,7 +173,10 @@ export default function Home() {
     initialize();
   }, []);
 
-  const fetchThreadsData = async (fetchYear: number, metric: 'count' | 'views') => {
+  const fetchThreadsData = async (
+    fetchYear: number,
+    metric: "count" | "views"
+  ) => {
     const res = await fetch(`/api/threads?year=${fetchYear}&metric=${metric}`);
     if (!res.ok) {
       const errorData = await res.json();
@@ -166,46 +196,60 @@ export default function Home() {
     return res.json();
   };
 
-  const fetchAllData = useCallback(async (fetchYear: number, metric: 'count' | 'views' = 'count') => {
-    setLoading(true);
-    setError(null);
+  const fetchAllData = useCallback(
+    async (fetchYear: number, metric: "count" | "views" = "count") => {
+      setLoading(true);
+      setError(null);
 
-    try {
-      const [threadsResult, insightsResult] = await Promise.allSettled([
-        fetchThreadsData(fetchYear, metric),
-        fetchInsightsData(fetchYear),
-      ]);
+      try {
+        const [threadsResult, insightsResult] = await Promise.allSettled([
+          fetchThreadsData(fetchYear, metric),
+          fetchInsightsData(fetchYear),
+        ]);
 
-      if (threadsResult.status === "fulfilled") {
-        console.log("Threads data:", threadsResult.value);
-        console.log("Data for CalendarHeatmap:", threadsResult.value);
-        console.log(
-          "CalendarHeatmap startDate:",
-          startDate,
-          "endDate:",
-          endDate
-        );
-        setData(threadsResult.value);
-      } else {
-        console.error("Failed to fetch threads data:", threadsResult.reason);
-        if (threadsResult.reason instanceof Error) {
-          const errorMessage = threadsResult.reason.message;
-          // setError(errorMessage);
-          if (
-            errorMessage.includes("Session has expired") ||
-            errorMessage.includes("Threads Access Token is not configured")
-          ) {
-            setShowTokenPopup(true);
-          }
+        if (threadsResult.status === "fulfilled") {
+          console.log("Threads data:", threadsResult.value);
+          console.log("Data for CalendarHeatmap:", threadsResult.value);
+          console.log(
+            "CalendarHeatmap startDate:",
+            startDate,
+            "endDate:",
+            endDate
+          );
+          setData(threadsResult.value);
+
+          // Calculate total posts from threadsResult.value
+          const totalPosts = threadsResult.value.reduce(
+            (sum: number, item: ActivityValue) => sum + item.count,
+            0
+          );
         } else {
-          // setError("An unknown error occurred");
+          console.error("Failed to fetch threads data:", threadsResult.reason);
+          if (threadsResult.reason instanceof Error) {
+            const errorMessage = threadsResult.reason.message;
+            // setError(errorMessage);
+            if (
+              errorMessage.includes("Session has expired") ||
+              errorMessage.includes("Threads Access Token is not configured")
+            ) {
+              setShowTokenPopup(true);
+            }
+          } else {
+            // setError("An unknown error occurred");
+          }
+          setData([]);
         }
-        setData([]);
-      }
 
-      if (insightsResult.status === "fulfilled") {
-        setInsights(
-          insightsResult.value.data.reduce(
+        if (insightsResult.status === "fulfilled") {
+          const totalPostsFromThreads =
+            threadsResult.status === "fulfilled"
+              ? threadsResult.value.reduce(
+                  (sum: number, item: ActivityValue) => sum + item.count,
+                  0
+                )
+              : insights?.total_posts || 0; // fallback to existing or 0
+
+          const newInsights = insightsResult.value.data.reduce(
             (
               acc: InsightData,
               item: {
@@ -232,39 +276,45 @@ export default function Home() {
               return acc;
             },
             {} as InsightData
-          )
-        );
-      } else {
-        console.error("Failed to fetch insight data:", insightsResult.reason);
-        if (insightsResult.reason instanceof Error) {
-          const errorMessage = insightsResult.reason.message;
-          if (errorMessage.includes("Invalid parameter")) {
-            setInsights({
-              views: 0,
-              likes: 0,
-              replies: 0,
-              reposts: 0,
-              followers_count: 0,
-            });
-          } else {
-            // setError(errorMessage);
-            if (
-              errorMessage.includes("Session has expired") ||
-              errorMessage.includes("Threads Access Token is not configured")
-            ) {
-              setShowTokenPopup(true);
+          );
+
+          setInsights({
+            ...newInsights,
+            total_posts: totalPostsFromThreads,
+          });
+        } else {
+          console.error("Failed to fetch insight data:", insightsResult.reason);
+          if (insightsResult.reason instanceof Error) {
+            const errorMessage = insightsResult.reason.message;
+            if (errorMessage.includes("Invalid parameter")) {
+              setInsights({
+                views: 0,
+                likes: 0,
+                replies: 0,
+                reposts: 0,
+                followers_count: 0,
+              });
+            } else {
+              // setError(errorMessage);
+              if (
+                errorMessage.includes("Session has expired") ||
+                errorMessage.includes("Threads Access Token is not configured")
+              ) {
+                setShowTokenPopup(true);
+              }
+              setInsights(null);
             }
+          } else {
+            // setError("An unknown error occurred");
             setInsights(null);
           }
-        } else {
-          // setError("An unknown error occurred");
-          setInsights(null);
         }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    []
+  );
 
   const handleLogout = async () => {
     localStorage.removeItem("THREADS_ACCESS_TOKEN");
@@ -397,15 +447,23 @@ export default function Home() {
           Threads 포스팅 기록을 Github 잔디처럼 보여줍니다.
         </p>
 
-        <form onSubmit={handleFetch} className="mb-8 flex flex-col sm:flex-row gap-4 items-end">
+        <form
+          onSubmit={handleFetch}
+          className="mb-8 flex flex-col sm:flex-row gap-4 items-end"
+        >
           <div className="flex-1 w-full sm:w-auto">
-            <label htmlFor="metric" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            <label
+              htmlFor="metric"
+              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+            >
               조회 기준
             </label>
             <select
               id="metric"
               value={heatmapMetric}
-              onChange={(e) => setHeatmapMetric(e.target.value as 'count' | 'views')}
+              onChange={(e) =>
+                setHeatmapMetric(e.target.value as "count" | "views")
+              }
               className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="count">게시글 수</option>
@@ -443,7 +501,19 @@ export default function Home() {
         {showHeatmap ? (
           <div>
             {(loading || insights) && (
-              <div className="mb-8 grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+              <div className="mb-8 grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
+                <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
+                  {loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {formatNumber(insights?.total_posts)}
+                    </p>
+                  )}
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    게시글 수
+                  </p>
+                </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
                   {loading ? (
                     <LoadingSpinner />
@@ -453,7 +523,7 @@ export default function Home() {
                     </p>
                   )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    조회
+                    조회 수
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
@@ -465,7 +535,7 @@ export default function Home() {
                     </p>
                   )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    좋아요
+                    좋아요 수
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
@@ -489,7 +559,7 @@ export default function Home() {
                     </p>
                   )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    리포스트
+                    리포스트 수
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
@@ -501,7 +571,7 @@ export default function Home() {
                     </p>
                   )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    팔로워수
+                    팔로워 수
                   </p>
                 </div>
               </div>
@@ -555,7 +625,7 @@ export default function Home() {
                         if (!value) {
                           return "color-empty";
                         }
-                        if (heatmapMetric === 'views') {
+                        if (heatmapMetric === "views") {
                           // View counts are much higher, so we need a different scale
                           // Scale roughly: 1-10, 11-50, 51-200, 200+
                           if (value.count === 0) return "color-empty";
