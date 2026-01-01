@@ -37,7 +37,7 @@ body {
 }
 
 /* Add a small gap between the month labels and the grid */
-.react-calendar-heatmap > svg > g > g {
+.react-calendar-heatmap>svg>g>g {
   transform: translateY(10px);
 }
 
@@ -54,11 +54,41 @@ body {
   fill: #ebedf0;
 }
 
-.react-calendar-heatmap .color-scale-0 { fill: #ebedf0; }
-.react-calendar-heatmap .color-scale-1 { fill: #9be9a8; }
-.react-calendar-heatmap .color-scale-2 { fill: #40c463; }
-.react-calendar-heatmap .color-scale-3 { fill: #30a14e; }
-.react-calendar-heatmap .color-scale-4 { fill: #216e39; }
+.react-calendar-heatmap .color-scale-0 {
+  fill: #ebedf0;
+}
+
+.react-calendar-heatmap .color-scale-1 {
+  fill: #9be9a8;
+}
+
+.react-calendar-heatmap .color-scale-2 {
+  fill: #40c463;
+}
+
+.react-calendar-heatmap .color-scale-3 {
+  fill: #30a14e;
+}
+
+.react-calendar-heatmap .color-scale-4 {
+  fill: #216e39;
+}
+
+.react-calendar-heatmap .color-scale-red-1 {
+  fill: #ffcdd2;
+}
+
+.react-calendar-heatmap .color-scale-red-2 {
+  fill: #e57373;
+}
+
+.react-calendar-heatmap .color-scale-red-3 {
+  fill: #d32f2f;
+}
+
+.react-calendar-heatmap .color-scale-red-4 {
+  fill: #b71c1c;
+}
 
 /* Dark mode styles */
 @media (prefers-color-scheme: dark) {
@@ -70,13 +100,39 @@ body {
     fill: #161b22;
   }
 
-  .react-calendar-heatmap .color-scale-0 { fill: #161b22; }
-  .react-calendar-heatmap .color-scale-1 { fill: #0e4429; }
-  .react-calendar-heatmap .color-scale-2 { fill: #006d32; }
-  .react-calendar-heatmap .color-scale-3 { fill: #26a641; }
-  .react-calendar-heatmap .color-scale-4 { fill: #39d353; }
+  .react-calendar-heatmap .color-scale-0 {
+    fill: #161b22;
+  }
 
-  .react-calendar-heatmap rect:hover {
-    stroke: #888;
+  .react-calendar-heatmap .color-scale-1 {
+    fill: #0e4429;
+  }
+
+  .react-calendar-heatmap .color-scale-2 {
+    fill: #006d32;
+  }
+
+  .react-calendar-heatmap .color-scale-3 {
+    fill: #26a641;
+  }
+
+  .react-calendar-heatmap .color-scale-4 {
+    fill: #39d353;
+  }
+
+  .react-calendar-heatmap .color-scale-red-1 {
+    fill: #480c0e;
+  }
+
+  .react-calendar-heatmap .color-scale-red-2 {
+    fill: #8c1b1f;
+  }
+
+  .react-calendar-heatmap .color-scale-red-3 {
+    fill: #cf222e;
+  }
+
+  .react-calendar-heatmap .color-scale-red-4 {
+    fill: #ff6a69;
   }
 }

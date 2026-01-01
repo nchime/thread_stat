@@ -13,17 +13,32 @@ type ActivityValue = {
   count: number;
 };
 
-const ColorLegend = () => (
-  <div className="flex items-center justify-end space-x-2 text-sm text-gray-600 dark:text-gray-400">
-    <span>Less</span>
-    <div className="w-4 h-4 rounded-sm bg-[#ebedf0] dark:bg-[#161b22] border border-gray-300 dark:border-gray-600"></div>
-    <div className="w-4 h-4 rounded-sm bg-[#9be9a8] dark:bg-[#0e4429]"></div>
-    <div className="w-4 h-4 rounded-sm bg-[#40c463] dark:bg-[#006d32]"></div>
-    <div className="w-4 h-4 rounded-sm bg-[#30a14e] dark:bg-[#26a641]"></div>
-    <div className="w-4 h-4 rounded-sm bg-[#216e39] dark:bg-[#39d353]"></div>
-    <span>More</span>
-  </div>
-);
+const ColorLegend = ({ metric }: { metric: 'count' | 'views' }) => {
+  if (metric === 'views') {
+    return (
+      <div className="flex items-center justify-end space-x-2 text-sm text-gray-600 dark:text-gray-400">
+        <span>Less</span>
+        <div className="w-4 h-4 rounded-sm bg-[#ebedf0] dark:bg-[#161b22] border border-gray-300 dark:border-gray-600"></div>
+        <div className="w-4 h-4 rounded-sm bg-[#ffcdd2] dark:bg-[#480c0e]" title="&lt; 100 views"></div>
+        <div className="w-4 h-4 rounded-sm bg-[#e57373] dark:bg-[#8c1b1f]" title="&lt; 500 views"></div>
+        <div className="w-4 h-4 rounded-sm bg-[#d32f2f] dark:bg-[#cf222e]" title="&lt; 1000 views"></div>
+        <div className="w-4 h-4 rounded-sm bg-[#b71c1c] dark:bg-[#ff6a69]" title="1000+ views"></div>
+        <span>More</span>
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-center justify-end space-x-2 text-sm text-gray-600 dark:text-gray-400">
+      <span>Less</span>
+      <div className="w-4 h-4 rounded-sm bg-[#ebedf0] dark:bg-[#161b22] border border-gray-300 dark:border-gray-600"></div>
+      <div className="w-4 h-4 rounded-sm bg-[#9be9a8] dark:bg-[#0e4429]" title="1 post"></div>
+      <div className="w-4 h-4 rounded-sm bg-[#40c463] dark:bg-[#006d32]" title="2 posts"></div>
+      <div className="w-4 h-4 rounded-sm bg-[#30a14e] dark:bg-[#26a641]" title="3 posts"></div>
+      <div className="w-4 h-4 rounded-sm bg-[#216e39] dark:bg-[#39d353]" title="4+ posts"></div>
+      <span>More</span>
+    </div>
+  );
+};
 
 type InsightData = {
   views: number;
@@ -83,6 +98,7 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [loadingPosts, setLoadingPosts] = useState(false);
   const [tokenExists, setTokenExists] = useState(false);
+  const [heatmapMetric, setHeatmapMetric] = useState<'count' | 'views'>('count');
 
   const fetchProfileData = async () => {
     try {
@@ -130,8 +146,8 @@ export default function Home() {
     initialize();
   }, []);
 
-  const fetchThreadsData = async (fetchYear: number) => {
-    const res = await fetch(`/api/threads?year=${fetchYear}`);
+  const fetchThreadsData = async (fetchYear: number, metric: 'count' | 'views') => {
+    const res = await fetch(`/api/threads?year=${fetchYear}&metric=${metric}`);
     if (!res.ok) {
       const errorData = await res.json();
       throw new Error(errorData.error || "데이터를 불러오는데 실패했습니다.");
@@ -150,13 +166,13 @@ export default function Home() {
     return res.json();
   };
 
-  const fetchAllData = useCallback(async (fetchYear: number) => {
+  const fetchAllData = useCallback(async (fetchYear: number, metric: 'count' | 'views' = 'count') => {
     setLoading(true);
     setError(null);
 
     try {
       const [threadsResult, insightsResult] = await Promise.allSettled([
-        fetchThreadsData(fetchYear),
+        fetchThreadsData(fetchYear, metric),
         fetchInsightsData(fetchYear),
       ]);
 
@@ -326,15 +342,16 @@ export default function Home() {
   const handleFetch = (e: FormEvent) => {
     e.preventDefault();
     setShowHeatmap(true);
+    fetchAllData(year, heatmapMetric);
   };
 
   useEffect(() => {
     if (showHeatmap) {
-      fetchAllData(year);
+      fetchAllData(year, heatmapMetric);
     }
     setSelectedDate(null);
     setPosts([]);
-  }, [year, showHeatmap, fetchAllData]);
+  }, [year, showHeatmap, fetchAllData, heatmapMetric]);
 
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year, 11, 31);
@@ -380,7 +397,21 @@ export default function Home() {
           Threads 포스팅 기록을 Github 잔디처럼 보여줍니다.
         </p>
 
-        <form onSubmit={handleFetch} className="mb-8 flex flex-col sm:flex-row gap-4">
+        <form onSubmit={handleFetch} className="mb-8 flex flex-col sm:flex-row gap-4 items-end">
+          <div className="flex-1 w-full sm:w-auto">
+            <label htmlFor="metric" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              조회 기준
+            </label>
+            <select
+              id="metric"
+              value={heatmapMetric}
+              onChange={(e) => setHeatmapMetric(e.target.value as 'count' | 'views')}
+              className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="count">게시글 수</option>
+              <option value="views">조회수</option>
+            </select>
+          </div>
           <button
             type="submit"
             disabled={loading}
@@ -524,6 +555,15 @@ export default function Home() {
                         if (!value) {
                           return "color-empty";
                         }
+                        if (heatmapMetric === 'views') {
+                          // View counts are much higher, so we need a different scale
+                          // Scale roughly: 1-10, 11-50, 51-200, 200+
+                          if (value.count === 0) return "color-empty";
+                          if (value.count < 1000) return "color-scale-red-1";
+                          if (value.count < 3000) return "color-scale-red-2";
+                          if (value.count < 5000) return "color-scale-red-3";
+                          return "color-scale-red-4";
+                        }
                         const count = Math.min(value.count, 4);
                         return `color-scale-${count}`;
                       }}
@@ -535,7 +575,7 @@ export default function Home() {
                     </p>
                   )}
                   <div className="mt-4">
-                    <ColorLegend />
+                    <ColorLegend metric={heatmapMetric} />
                   </div>
                 </div>
               )}

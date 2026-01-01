@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   const accessToken = getAccessToken();
   const { searchParams } = new URL(request.url);
   const yearParam = searchParams.get('year');
+  const metric = searchParams.get('metric') || 'count'; // 'count' or 'views'
   const year = yearParam ? parseInt(yearParam, 10) : new Date().getFullYear();
 
   if (!accessToken) {
@@ -27,14 +28,49 @@ export async function GET(request: NextRequest) {
   try {
     const allMedia = await fetchAllMedia(accessToken, year);
 
-    const aggregated: AggregatedData = allMedia.reduce((acc: AggregatedData, media: MediaNode) => {
-      const date = media.timestamp.split('T')[0];
-      if (!acc[date]) {
-        acc[date] = { date, count: 0 };
-      }
-      acc[date].count++;
-      return acc;
-    }, {});
+    let aggregated: AggregatedData = {};
+
+    if (metric === 'views') {
+      // Fetch views for all media
+      // Note: This might be slow and hit rate limits for many posts
+      const mediaWithViews = await Promise.all(allMedia.map(async (media: MediaNode) => {
+        try {
+          const insightUrl = `https://graph.threads.net/v1.0/${media.id}/insights?metric=views&access_token=${accessToken}`;
+          const insightRes = await fetch(insightUrl, { cache: 'no-store' });
+
+          if (insightRes.ok) {
+            const insightData = await insightRes.json();
+            // Structure: { data: [ { name: 'views', values: [ { value: 123 } ] } ] }
+            const viewsMetric = insightData.data?.find((m: any) => m.name === 'views');
+            const views = viewsMetric?.values?.[0]?.value || 0;
+            return { ...media, views };
+          }
+        } catch (error) {
+          console.error(`Failed to fetch insights for media ${media.id}:`, error);
+        }
+        return { ...media, views: 0 };
+      }));
+
+      aggregated = mediaWithViews.reduce((acc: AggregatedData, media: any) => {
+        const date = media.timestamp.split('T')[0];
+        if (!acc[date]) {
+          acc[date] = { date, count: 0 };
+        }
+        acc[date].count += media.views;
+        return acc;
+      }, {});
+
+    } else {
+      // Default: Count posts
+      aggregated = allMedia.reduce((acc: AggregatedData, media: MediaNode) => {
+        const date = media.timestamp.split('T')[0];
+        if (!acc[date]) {
+          acc[date] = { date, count: 0 };
+        }
+        acc[date].count++;
+        return acc;
+      }, {});
+    }
 
     return NextResponse.json(Object.values(aggregated));
   } catch (error: unknown) {
