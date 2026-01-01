@@ -15,7 +15,32 @@ async function fetchPosts(accessToken: string, since: number, until: number) {
     throw new Error(errorMsg);
   }
 
-  return response.json();
+  const data = await response.json();
+
+  if (!data.data) {
+    return data;
+  }
+
+  // Fetch insights for each post to get view count
+  const postsWithViews = await Promise.all(data.data.map(async (post: any) => {
+    try {
+      const insightUrl = `https://graph.threads.net/v1.0/${post.id}/insights?metric=views&access_token=${accessToken}`;
+      const insightRes = await fetch(insightUrl, { cache: 'no-store' });
+
+      if (insightRes.ok) {
+        const insightData = await insightRes.json();
+        // Structure: { data: [ { name: 'views', values: [ { value: 123 } ] } ] }
+        const viewsMetric = insightData.data?.find((m: any) => m.name === 'views');
+        const views = viewsMetric?.values?.[0]?.value || 0;
+        return { ...post, views };
+      }
+    } catch (error) {
+      console.error(`Failed to fetch insights for post ${post.id}:`, error);
+    }
+    return { ...post, views: 0 };
+  }));
+
+  return { ...data, data: postsWithViews };
 }
 
 import { getAccessToken } from '../token/store';

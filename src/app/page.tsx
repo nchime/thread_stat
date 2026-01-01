@@ -40,6 +40,7 @@ type Post = {
   media_url?: string;
   media_type?: "IMAGE" | "VIDEO" | "CAROUSEL_ALBUM" | "REEL";
   permalink: string;
+  views?: number;
 };
 
 type Profile = {
@@ -64,6 +65,10 @@ const formatTime = (timestamp: string) => {
     second: "2-digit",
   });
 };
+
+const LoadingSpinner = () => (
+  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900 dark:border-white mx-auto"></div>
+);
 
 export default function Home() {
   const [data, setData] = useState<ActivityValue[]>([]);
@@ -169,7 +174,7 @@ export default function Home() {
         console.error("Failed to fetch threads data:", threadsResult.reason);
         if (threadsResult.reason instanceof Error) {
           const errorMessage = threadsResult.reason.message;
-          setError(errorMessage);
+          // setError(errorMessage);
           if (
             errorMessage.includes("Session has expired") ||
             errorMessage.includes("Threads Access Token is not configured")
@@ -177,7 +182,7 @@ export default function Home() {
             setShowTokenPopup(true);
           }
         } else {
-          setError("An unknown error occurred");
+          // setError("An unknown error occurred");
         }
         setData([]);
       }
@@ -214,6 +219,7 @@ export default function Home() {
           )
         );
       } else {
+        console.error("Failed to fetch insight data:", insightsResult.reason);
         if (insightsResult.reason instanceof Error) {
           const errorMessage = insightsResult.reason.message;
           if (errorMessage.includes("Invalid parameter")) {
@@ -225,7 +231,7 @@ export default function Home() {
               followers_count: 0,
             });
           } else {
-            setError(errorMessage);
+            // setError(errorMessage);
             if (
               errorMessage.includes("Session has expired") ||
               errorMessage.includes("Threads Access Token is not configured")
@@ -235,7 +241,7 @@ export default function Home() {
             setInsights(null);
           }
         } else {
-          setError("An unknown error occurred");
+          // setError("An unknown error occurred");
           setInsights(null);
         }
       }
@@ -306,11 +312,12 @@ export default function Home() {
       const postsData = await res.json();
       setPosts(postsData.data);
     } catch (error) {
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred");
-      }
+      console.error("Failed to fetch posts:", error);
+      // if (error instanceof Error) {
+      //   setError(error.message);
+      // } else {
+      //   setError("An unknown error occurred");
+      // }
     } finally {
       setLoadingPosts(false);
     }
@@ -325,6 +332,8 @@ export default function Home() {
     if (showHeatmap) {
       fetchAllData(year);
     }
+    setSelectedDate(null);
+    setPosts([]);
   }, [year, showHeatmap, fetchAllData]);
 
   const startDate = new Date(year, 0, 1);
@@ -371,13 +380,24 @@ export default function Home() {
           Threads 포스팅 기록을 Github 잔디처럼 보여줍니다.
         </p>
 
-        <form onSubmit={handleFetch} className="mb-8">
+        <form onSubmit={handleFetch} className="mb-8 flex flex-col sm:flex-row gap-4">
           <button
             type="submit"
             disabled={loading}
             className="w-full sm:w-auto px-8 py-3 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? "조회 중..." : "활동 조회"}
+          </button>
+
+          <button
+            type="button"
+            disabled={loading || !tokenExists}
+            onClick={() => {
+              window.location.href = `/api/download-csv?year=${year}`;
+            }}
+            className="w-full sm:w-auto px-8 py-3 font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            CSV 다운로드
           </button>
         </form>
 
@@ -391,44 +411,64 @@ export default function Home() {
 
         {showHeatmap ? (
           <div>
-            {insights && (
+            {(loading || insights) && (
               <div className="mb-8 grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <p className="text-2xl font-bold">
-                    {formatNumber(insights?.views)}
-                  </p>
+                  {loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {formatNumber(insights?.views)}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     조회
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <p className="text-2xl font-bold">
-                    {formatNumber(insights?.likes)}
-                  </p>
+                  {loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {formatNumber(insights?.likes)}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     좋아요
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <p className="text-2xl font-bold">
-                    {formatNumber(insights?.replies)}
-                  </p>
+                  {loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {formatNumber(insights?.replies)}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     답글
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <p className="text-2xl font-bold">
-                    {formatNumber(insights?.reposts)}
-                  </p>
+                  {loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {formatNumber(insights?.reposts)}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     리포스트
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
-                  <p className="text-2xl font-bold">
-                    {formatNumber(insights?.followers_count)}
-                  </p>
+                  {loading ? (
+                    <LoadingSpinner />
+                  ) : (
+                    <p className="text-2xl font-bold">
+                      {formatNumber(insights?.followers_count)}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     팔로워수
                   </p>
@@ -491,7 +531,7 @@ export default function Home() {
                     />
                   ) : (
                     <p className="text-gray-500 dark:text-gray-400">
-                      데이터를 불러오는 중이거나 표시할 데이터가 없습니다.
+                      표시할 데이터가 없습니다.
                     </p>
                   )}
                   <div className="mt-4">
@@ -510,14 +550,21 @@ export default function Home() {
                 ) : (
                   <div className="space-y-4">
                     {posts.length > 0 ? (
-                      posts.map((post) => (
+                      posts.map((post: Post) => (
                         <div
                           key={post.id}
                           className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                         >
-                          <p className="text-sm text-gray-400 dark:text-gray-500 mb-2">
-                            {formatTime(post.timestamp)}
-                          </p>
+                          <div className="flex justify-between items-start mb-2">
+                            <p className="text-sm text-gray-400 dark:text-gray-500">
+                              {formatTime(post.timestamp)}
+                            </p>
+                            {post.views !== undefined && (
+                              <span className="text-xs font-medium px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-600 dark:text-gray-400">
+                                {formatNumber(post.views)} views
+                              </span>
+                            )}
+                          </div>
                           <div className="text-gray-800 dark:text-gray-200">
                             {post.text &&
                               post.text
