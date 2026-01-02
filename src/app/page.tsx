@@ -547,7 +547,7 @@ export default function Home() {
                     </p>
                   )}
                   <p className="text-sm text-gray-600 dark:text-gray-400">
-                    답글
+                    답글 수
                   </p>
                 </div>
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
