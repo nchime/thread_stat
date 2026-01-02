@@ -111,7 +111,10 @@ const LoadingSpinner = () => (
 );
 
 export default function Home() {
-  const [data, setData] = useState<ActivityValue[]>([]);
+  const [dataByMetric, setDataByMetric] = useState<{
+    count: ActivityValue[];
+    views: ActivityValue[];
+  }>({ count: [], views: [] });
   const [insights, setInsights] = useState<InsightData | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(false);
@@ -196,125 +199,117 @@ export default function Home() {
     return res.json();
   };
 
-  const fetchAllData = useCallback(
-    async (fetchYear: number, metric: "count" | "views" = "count") => {
-      setLoading(true);
-      setError(null);
+  const fetchAllData = useCallback(async (fetchYear: number) => {
+    setLoading(true);
+    setError(null);
 
-      try {
-        const [threadsResult, insightsResult] = await Promise.allSettled([
-          fetchThreadsData(fetchYear, metric),
+    try {
+      // Fetch data for both metrics and insights in parallel
+      const [countResult, viewsResult, insightsResult] = await Promise.allSettled(
+        [
+          fetchThreadsData(fetchYear, "count"),
+          fetchThreadsData(fetchYear, "views"),
           fetchInsightsData(fetchYear),
-        ]);
+        ]
+      );
 
-        if (threadsResult.status === "fulfilled") {
-          console.log("Threads data:", threadsResult.value);
-          console.log("Data for CalendarHeatmap:", threadsResult.value);
-          console.log(
-            "CalendarHeatmap startDate:",
-            startDate,
-            "endDate:",
-            endDate
-          );
-          setData(threadsResult.value);
+      const newData = { count: [], views: [] };
 
-          // Calculate total posts from threadsResult.value
-          const totalPosts = threadsResult.value.reduce(
-            (sum: number, item: ActivityValue) => sum + item.count,
-            0
-          );
-        } else {
-          console.error("Failed to fetch threads data:", threadsResult.reason);
-          if (threadsResult.reason instanceof Error) {
-            const errorMessage = threadsResult.reason.message;
-            // setError(errorMessage);
-            if (
-              errorMessage.includes("Session has expired") ||
-              errorMessage.includes("Threads Access Token is not configured")
-            ) {
-              setShowTokenPopup(true);
+      if (countResult.status === "fulfilled") {
+        newData.count = countResult.value;
+      } else {
+        console.error("Failed to fetch count data:", countResult.reason);
+        handleFetchError(countResult.reason);
+      }
+
+      if (viewsResult.status === "fulfilled") {
+        newData.views = viewsResult.value;
+      } else {
+        console.error("Failed to fetch views data:", viewsResult.reason);
+        handleFetchError(viewsResult.reason);
+      }
+
+      setDataByMetric(newData);
+
+      if (insightsResult.status === "fulfilled") {
+        const totalPostsFromThreads =
+          countResult.status === "fulfilled"
+            ? countResult.value.reduce(
+                (sum: number, item: ActivityValue) => sum + item.count,
+                0
+              )
+            : insights?.total_posts || 0;
+
+        const newInsights = insightsResult.value.data.reduce(
+          (
+            acc: InsightData,
+            item: {
+              name: string;
+              values: { value: number }[];
+              total_value?: { value: number };
             }
-          } else {
-            // setError("An unknown error occurred");
-          }
-          setData([]);
-        }
-
-        if (insightsResult.status === "fulfilled") {
-          const totalPostsFromThreads =
-            threadsResult.status === "fulfilled"
-              ? threadsResult.value.reduce(
-                  (sum: number, item: ActivityValue) => sum + item.count,
-                  0
-                )
-              : insights?.total_posts || 0; // fallback to existing or 0
-
-          const newInsights = insightsResult.value.data.reduce(
-            (
-              acc: InsightData,
-              item: {
-                name: string;
-                values: { value: number }[];
-                total_value?: { value: number };
-              }
-            ) => {
-              if (item.total_value) {
-                return {
-                  ...acc,
-                  [item.name]: item.total_value.value,
-                };
-              } else if (item.values && item.values.length > 0) {
-                const totalValue = item.values.reduce(
-                  (sum, v) => sum + v.value,
-                  0
-                );
-                return {
-                  ...acc,
-                  [item.name]: totalValue,
-                };
-              }
-              return acc;
-            },
-            {} as InsightData
-          );
-
-          setInsights({
-            ...newInsights,
-            total_posts: totalPostsFromThreads,
-          });
-        } else {
-          console.error("Failed to fetch insight data:", insightsResult.reason);
-          if (insightsResult.reason instanceof Error) {
-            const errorMessage = insightsResult.reason.message;
-            if (errorMessage.includes("Invalid parameter")) {
-              setInsights({
-                views: 0,
-                likes: 0,
-                replies: 0,
-                reposts: 0,
-                followers_count: 0,
-              });
-            } else {
-              // setError(errorMessage);
-              if (
-                errorMessage.includes("Session has expired") ||
-                errorMessage.includes("Threads Access Token is not configured")
-              ) {
-                setShowTokenPopup(true);
-              }
-              setInsights(null);
+          ) => {
+            if (item.total_value) {
+              return {
+                ...acc,
+                [item.name]: item.total_value.value,
+              };
+            } else if (item.values && item.values.length > 0) {
+              const totalValue = item.values.reduce(
+                (sum, v) => sum + v.value,
+                0
+              );
+              return {
+                ...acc,
+                [item.name]: totalValue,
+              };
             }
+            return acc;
+          },
+          {} as InsightData
+        );
+
+        setInsights({
+          ...newInsights,
+          total_posts: totalPostsFromThreads,
+        });
+      } else {
+        console.error("Failed to fetch insight data:", insightsResult.reason);
+        if (insightsResult.reason instanceof Error) {
+          const errorMessage = insightsResult.reason.message;
+          if (errorMessage.includes("Invalid parameter")) {
+            setInsights({
+              views: 0,
+              likes: 0,
+              replies: 0,
+              reposts: 0,
+              followers_count: 0,
+              total_posts: 0,
+            });
           } else {
-            // setError("An unknown error occurred");
+            handleFetchError(insightsResult.reason);
             setInsights(null);
           }
+        } else {
+          setInsights(null);
         }
-      } finally {
-        setLoading(false);
       }
-    },
-    []
-  );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleFetchError = (error: any) => {
+    if (error instanceof Error) {
+      const errorMessage = error.message;
+      if (
+        errorMessage.includes("Session has expired") ||
+        errorMessage.includes("Threads Access Token is not configured")
+      ) {
+        setShowTokenPopup(true);
+      }
+    }
+  };
 
   const handleLogout = async () => {
     localStorage.removeItem("THREADS_ACCESS_TOKEN");
@@ -329,7 +324,7 @@ export default function Home() {
     } catch (error) {
       console.error("Failed to clear token on backend:", error);
     }
-    setData([]);
+    setDataByMetric({ count: [], views: [] });
     setInsights(null);
     setProfile(null);
     setError(null);
@@ -379,35 +374,21 @@ export default function Home() {
       setPosts(postsData.data);
     } catch (error) {
       console.error("Failed to fetch posts:", error);
-      // if (error instanceof Error) {
-      //   setError(error.message);
-      // } else {
-      //   setError("An unknown error occurred");
-      // }
     } finally {
       setLoadingPosts(false);
     }
   };
 
-  const handleFetch = (e: FormEvent) => {
-    e.preventDefault();
-    setShowHeatmap(true);
-    fetchAllData(year, heatmapMetric);
-  };
-
   useEffect(() => {
     if (showHeatmap) {
-      fetchAllData(year, heatmapMetric);
+      fetchAllData(year);
     }
     setSelectedDate(null);
     setPosts([]);
-  }, [year, showHeatmap, fetchAllData, heatmapMetric]);
+  }, [year, showHeatmap, fetchAllData]);
 
   const startDate = new Date(year, 0, 1);
   const endDate = new Date(year, 11, 31);
-
-  console.log("Calculated startDate:", startDate);
-  console.log("Calculated endDate:", endDate);
 
   return (
     <main className="flex min-h-screen flex-col items-center p-4 sm:p-8 md:p-12 lg:p-24">
@@ -446,49 +427,6 @@ export default function Home() {
         <p className="text-gray-600 dark:text-gray-400 mb-8">
           Threads 포스팅 기록을 Github 잔디처럼 보여줍니다.
         </p>
-
-        <form
-          onSubmit={handleFetch}
-          className="mb-8 flex flex-col sm:flex-row gap-4 items-end"
-        >
-          <div className="flex-1 w-full sm:w-auto">
-            <label
-              htmlFor="metric"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              조회 기준
-            </label>
-            <select
-              id="metric"
-              value={heatmapMetric}
-              onChange={(e) =>
-                setHeatmapMetric(e.target.value as "count" | "views")
-              }
-              className="w-full px-4 py-3 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="count">게시글 수</option>
-              <option value="views">조회수</option>
-            </select>
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full sm:w-auto px-8 py-3 font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? "조회 중..." : "활동 조회"}
-          </button>
-
-          <button
-            type="button"
-            disabled={loading || !tokenExists}
-            onClick={() => {
-              window.location.href = `/api/download-csv?year=${year}`;
-            }}
-            className="w-full sm:w-auto px-8 py-3 font-semibold text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            CSV 다운로드
-          </button>
-        </form>
 
         {error && (
           <div className="mb-4 p-4 text-red-800 bg-red-100 dark:text-red-200 dark:bg-red-900/50 rounded-lg">
@@ -577,8 +515,32 @@ export default function Home() {
               </div>
             )}
             <div className="bg-white dark:bg-gray-800/50 p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-semibold">{year}년 활동</h2>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+                <div className="flex items-center gap-4">
+                  <h2 className="text-xl font-semibold whitespace-nowrap">
+                    {year}년 활동
+                  </h2>
+                  <select
+                    value={heatmapMetric}
+                    onChange={(e) =>
+                      setHeatmapMetric(e.target.value as "count" | "views")
+                    }
+                    className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                  >
+                    <option value="count">게시글 수</option>
+                    <option value="views">조회수</option>
+                  </select>
+                  <button
+                    type="button"
+                    disabled={loading || !tokenExists}
+                    onClick={() => {
+                      window.location.href = `/api/download-csv?year=${year}`;
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
+                  >
+                    CSV 다운로드
+                  </button>
+                </div>
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => setYear(year - 1)}
@@ -611,11 +573,11 @@ export default function Home() {
                 </div>
               ) : (
                 <div className="min-h-[200px] w-full">
-                  {data.length > 0 ? (
+                  {dataByMetric[heatmapMetric].length > 0 ? (
                     <CalendarHeatmap
                       startDate={startDate}
                       endDate={endDate}
-                      values={data}
+                      values={dataByMetric[heatmapMetric]}
                       onClick={(value) => {
                         if (value) {
                           fetchPostsForDate(value.date);
@@ -626,8 +588,6 @@ export default function Home() {
                           return "color-empty";
                         }
                         if (heatmapMetric === "views") {
-                          // View counts are much higher, so we need a different scale
-                          // Scale roughly: 1-10, 11-50, 51-200, 200+
                           if (value.count === 0) return "color-empty";
                           if (value.count < 1000) return "color-scale-red-1";
                           if (value.count < 3000) return "color-scale-red-2";
@@ -746,7 +706,7 @@ export default function Home() {
         ) : (
           <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">
-              &apos;올해 활동 조회&apos; 버튼을 눌러주세요.
+              로그인이 필요합니다.
             </p>
           </div>
         )}

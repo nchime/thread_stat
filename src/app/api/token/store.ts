@@ -2,7 +2,7 @@
 let accessToken: string | null = null;
 
 export function getAccessToken() {
-  return accessToken;
+  return accessToken || process.env.THREADS_ACCESS_TOKEN;
 }
 
 export function setAccessToken(token: string) {
