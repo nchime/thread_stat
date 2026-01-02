@@ -235,9 +235,9 @@ export default function Home() {
         const totalPostsFromThreads =
           countResult.status === "fulfilled"
             ? countResult.value.reduce(
-                (sum: number, item: ActivityValue) => sum + item.count,
-                0
-              )
+              (sum: number, item: ActivityValue) => sum + item.count,
+              0
+            )
             : insights?.total_posts || 0;
 
         const newInsights = insightsResult.value.data.reduce(
@@ -425,7 +425,7 @@ export default function Home() {
           </div>
         </div>
         <p className="text-gray-600 dark:text-gray-400 mb-8">
-          Threads 포스팅 기록을 Github 잔디처럼 보여줍니다.
+          {/* Threads 포스팅 기록을 Github 잔디처럼 보여줍니다. */}
         </p>
 
         {error && (
@@ -438,6 +438,48 @@ export default function Home() {
 
         {showHeatmap ? (
           <div>
+
+
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+              <div className="flex items-center gap-4">
+                <h2 className="text-xl font-semibold whitespace-nowrap">
+                  {year}년 활동
+                </h2>
+                <button
+                  type="button"
+                  disabled={loading || !tokenExists}
+                  onClick={() => {
+                    window.location.href = `/api/download-csv?year=${year}`;
+                  }}
+                  className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
+                >
+                  CSV 다운로드
+                </button>
+              </div>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => setYear(year - 1)}
+                  disabled={year <= 2024}
+                  className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  &larr;
+                </button>
+                <button
+                  onClick={() => setYear(year + 1)}
+                  disabled={year === new Date().getFullYear()}
+                  className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  &rarr;
+                </button>
+                <button
+                  onClick={() => setYear(new Date().getFullYear())}
+                  className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
+                >
+                  올해
+                </button>
+              </div>
+            </div>
+
             {(loading || insights) && (
               <div className="mb-8 grid grid-cols-2 md:grid-cols-6 gap-4 text-center">
                 <div className="p-4 bg-gray-100 dark:bg-gray-800 rounded-lg">
@@ -515,55 +557,19 @@ export default function Home() {
               </div>
             )}
             <div className="bg-white dark:bg-gray-800/50 p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
-                <div className="flex items-center gap-4">
-                  <h2 className="text-xl font-semibold whitespace-nowrap">
-                    {year}년 활동
-                  </h2>
-                  <select
-                    value={heatmapMetric}
-                    onChange={(e) =>
-                      setHeatmapMetric(e.target.value as "count" | "views")
-                    }
-                    className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-                  >
-                    <option value="count">게시글 수</option>
-                    <option value="views">조회수</option>
-                  </select>
-                  <button
-                    type="button"
-                    disabled={loading || !tokenExists}
-                    onClick={() => {
-                      window.location.href = `/api/download-csv?year=${year}`;
-                    }}
-                    className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 disabled:opacity-50"
-                  >
-                    CSV 다운로드
-                  </button>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => setYear(year - 1)}
-                    disabled={year <= 2024}
-                    className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    &larr;
-                  </button>
-                  <button
-                    onClick={() => setYear(year + 1)}
-                    disabled={year === new Date().getFullYear()}
-                    className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    &rarr;
-                  </button>
-                  <button
-                    onClick={() => setYear(new Date().getFullYear())}
-                    className="px-3 py-1 text-sm font-medium text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 dark:text-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600"
-                  >
-                    올해
-                  </button>
-                </div>
+              <div className="flex items-center gap-4 mb-4">
+                <select
+                  value={heatmapMetric}
+                  onChange={(e) =>
+                    setHeatmapMetric(e.target.value as "count" | "views")
+                  }
+                  className="px-3 py-1.5 text-sm bg-gray-50 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
+                >
+                  <option value="count">게시글 수</option>
+                  <option value="views">조회수</option>
+                </select>
               </div>
+
 
               {loading ? (
                 <div className="h-48 flex items-center justify-center">

@@ -12,10 +12,8 @@ Threads 포스팅 기록을 Github 잔디처럼 보여주는 프로젝트입니�
 
 2. **환경 변수 설정:**
 
-   `.env.local` 파일을 생성하고 아래와 같이 Threads Access Token을 추가합니다.
-
    ```
-   THREADS_ACCESS_TOKEN=your_access_token
+   export THREADS_ACCESS_TOKEN=your_access_token
    ```
 
 3. **개발 서버 실행:**
