@@ -7,6 +7,8 @@ import { Tooltip } from "react-tooltip";
 import Image from "next/image";
 import ErrorBoundary from "./components/ErrorBoundary";
 import TokenPopup from "./components/TokenPopup";
+import ActivityChart from "@/components/ActivityChart";
+import TopPostsList from "@/components/TopPostsList";
 
 type ActivityValue = {
   date: string;
@@ -129,6 +131,8 @@ export default function Home() {
   const [heatmapMetric, setHeatmapMetric] = useState<"count" | "views">(
     "count"
   );
+  const [detailedStats, setDetailedStats] = useState<any[]>([]);
+  const [topPosts, setTopPosts] = useState<any[]>([]);
 
   const fetchProfileData = async () => {
     try {
@@ -178,7 +182,7 @@ export default function Home() {
 
   const fetchThreadsData = async (
     fetchYear: number,
-    metric: "count" | "views"
+    metric: "count" | "views" | "detailed"
   ) => {
     const res = await fetch(`/api/threads?year=${fetchYear}&metric=${metric}`);
     if (!res.ok) {
@@ -205,36 +209,45 @@ export default function Home() {
 
     try {
       // Fetch data for both metrics and insights in parallel
-      const [countResult, viewsResult, insightsResult] = await Promise.allSettled(
+      const [threadsResult, insightsResult] = await Promise.allSettled(
         [
-          fetchThreadsData(fetchYear, "count"),
-          fetchThreadsData(fetchYear, "views"),
+          Promise.all([
+            fetchThreadsData(fetchYear, "count"),
+            fetchThreadsData(fetchYear, "views"),
+            fetchThreadsData(fetchYear, "detailed"),
+          ]),
           fetchInsightsData(fetchYear),
         ]
       );
 
       const newData = { count: [], views: [] };
 
-      if (countResult.status === "fulfilled") {
-        newData.count = countResult.value;
-      } else {
-        console.error("Failed to fetch count data:", countResult.reason);
-        handleFetchError(countResult.reason);
-      }
+      if (threadsResult.status === "fulfilled") {
+        const [countData, viewsData, detailedResponse] = threadsResult.value;
+        newData.count = countData;
+        newData.views = viewsData;
 
-      if (viewsResult.status === "fulfilled") {
-        newData.views = viewsResult.value;
+        // Handle new detailed response structure
+        if (detailedResponse && detailedResponse.dailyStats) {
+          setDetailedStats(detailedResponse.dailyStats);
+          setTopPosts(detailedResponse.topPosts || []);
+        } else {
+          // Fallback for old structure or if API fails silently
+          setDetailedStats(detailedResponse || []);
+          setTopPosts([]);
+        }
+
       } else {
-        console.error("Failed to fetch views data:", viewsResult.reason);
-        handleFetchError(viewsResult.reason);
+        console.error("Failed to fetch threads data:", threadsResult.reason);
+        handleFetchError(threadsResult.reason);
       }
 
       setDataByMetric(newData);
 
       if (insightsResult.status === "fulfilled") {
         const totalPostsFromThreads =
-          countResult.status === "fulfilled"
-            ? countResult.value.reduce(
+          threadsResult.status === "fulfilled"
+            ? threadsResult.value[0].reduce(
               (sum: number, item: ActivityValue) => sum + item.count,
               0
             )
@@ -362,8 +375,9 @@ export default function Home() {
   };
 
   const fetchPostsForDate = async (date: string) => {
+    setSelectedDate(null); // Hide section first
     setLoadingPosts(true);
-    setSelectedDate(date);
+    setPosts([]);
     try {
       const res = await fetch(`/api/posts?date=${date}`);
       if (!res.ok) {
@@ -372,6 +386,13 @@ export default function Home() {
       }
       const postsData = await res.json();
       setPosts(postsData.data);
+      if (postsData.data.length > 0) {
+        setSelectedDate(date); // Only show if we have posts (or simply show updated data)
+      } else {
+        // If no posts, we already hid it by setting null, so logically it remains hidden.
+        // But strict user requirement: "show only if data exists".
+        // If 0 posts, selectedDate remains null.
+      }
     } catch (error) {
       console.error("Failed to fetch posts:", error);
     } finally {
@@ -557,7 +578,8 @@ export default function Home() {
               </div>
             )}
             <div className="bg-white dark:bg-gray-800/50 p-4 sm:p-6 rounded-lg shadow-md border border-gray-200 dark:border-gray-700">
-              <div className="flex items-center gap-4 mb-4">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold">날짜별 잔디 현황</h2>
                 <select
                   value={heatmapMetric}
                   onChange={(e) =>
@@ -585,7 +607,7 @@ export default function Home() {
                       endDate={endDate}
                       values={dataByMetric[heatmapMetric]}
                       onClick={(value) => {
-                        if (value) {
+                        if (value && value.count > 0) {
                           fetchPostsForDate(value.date);
                         }
                       }}
@@ -616,11 +638,35 @@ export default function Home() {
                 </div>
               )}
             </div>
+
+            {/* Selected Date Posts - Moved here */}
             {selectedDate && (
               <div className="mt-8">
-                <h2 className="text-xl font-semibold mb-4">
-                  {selectedDate} 게시글
-                </h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-semibold">
+                    {selectedDate} 게시글
+                  </h2>
+                  <button
+                    onClick={() => setSelectedDate(null)}
+                    className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 transition-colors"
+                    aria-label="Close"
+                  >
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                      className="w-6 h-6"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
+                </div>
                 {loadingPosts ? (
                   <p>게시글을 불러오는 중...</p>
                 ) : (
@@ -708,6 +754,17 @@ export default function Home() {
                 )}
               </div>
             )}
+
+            {/* Line Chart */}
+            {(dataByMetric[heatmapMetric].length > 0) && (
+              <ActivityChart data={detailedStats} loading={loading} />
+            )}
+
+            {/* Top Posts List */}
+            {topPosts.length > 0 && (
+              <TopPostsList posts={topPosts} loading={loading} />
+            )}
+
           </div>
         ) : (
           <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
