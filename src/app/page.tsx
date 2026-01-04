@@ -172,6 +172,8 @@ export default function Home() {
         if (data.exists) {
           fetchProfileData();
           setShowHeatmap(true);
+        } else {
+          setShowTokenPopup(true);
         }
       } catch (error) {
         console.error("Failed to check token existence:", error);
@@ -768,9 +770,15 @@ export default function Home() {
           </div>
         ) : (
           <div className="text-center p-10 border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-lg">
-            <p className="text-gray-500 dark:text-gray-400">
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
               로그인이 필요합니다.
             </p>
+            <button
+              onClick={() => setShowTokenPopup(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+            >
+              Thread API Key 설정
+            </button>
           </div>
         )}
 
